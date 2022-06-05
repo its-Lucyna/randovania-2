@@ -33,12 +33,13 @@ class GamePatches:
     Currently we support:
     * Swapping pickup locations
     """
+    game: GameDescription
     player_index: int
     configuration: BaseConfiguration
     pickup_assignment: dict[PickupIndex, PickupTarget]
     elevator_connection: ElevatorConnection
     dock_connection: dict[NodeIdentifier, Optional[NodeIdentifier]]
-    dock_weakness: dict[NodeIdentifier, DockWeakness]
+    dock_weakness: dict[int, DockWeakness]
     configurable_nodes: dict[NodeIdentifier, Requirement]
     starting_items: ResourceCollection
     starting_location: AreaIdentifier
@@ -57,7 +58,7 @@ class GamePatches:
     def create_from_game(cls, game: GameDescription, player_index: int, configuration: BaseConfiguration,
                          ) -> GamePatches:
         return GamePatches(
-            player_index, configuration, {}, game.get_default_elevator_connection(),
+            game, player_index, configuration, {}, game.get_default_elevator_connection(),
             {}, {}, {},
             ResourceCollection.with_database(game.resource_database),
             game.starting_location, {},
@@ -92,8 +93,8 @@ class GamePatches:
     def assign_dock_weakness(self, weaknesses: Iterator[DockWeaknessAssociation]) -> "GamePatches":
         new_weakness = copy.copy(self.dock_weakness)
 
-        for identifier, weakness in weaknesses:
-            new_weakness[identifier] = weakness
+        for node, weakness in weaknesses:
+            new_weakness[node.get_index()] = weakness
 
         return dataclasses.replace(self, dock_weakness=new_weakness)
 
@@ -126,7 +127,9 @@ class GamePatches:
 
     # Dock Weakness
     def get_dock_weakness_for(self, node: DockNode) -> DockWeakness:
-        return self.dock_weakness.get(node.identifier, node.default_dock_weakness)
+        return self.dock_weakness.get(node.get_index(), node.default_dock_weakness)
 
     def all_dock_weaknesses(self) -> Iterator[DockWeaknessAssociation]:
-        yield from self.dock_weakness.items()
+        nodes = self.game.world_list.all_nodes
+        for index, weakness in self.dock_weakness.items():
+            yield nodes[index], weakness
