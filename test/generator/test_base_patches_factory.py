@@ -215,7 +215,9 @@ def test_create_base_patches(mocker):
     layout_configuration.game = RandovaniaGame.METROID_PRIME_ECHOES
     is_multiworld = MagicMock()
 
-    game_patches_mock: MagicMock = mocker.patch("randovania.generator.base_patches_factory.GamePatches", autospec=True)
+    mock_create_from_game: MagicMock = mocker.patch(
+        "randovania.generator.base_patches_factory.GamePatches.create_from_game", autospec=True,
+    )
     mock_add_elevator_connections_to_patches: MagicMock = mocker.patch(
         "randovania.generator.base_patches_factory.BasePatchesFactory.add_elevator_connections_to_patches",
         autospec=True,
@@ -229,7 +231,7 @@ def test_create_base_patches(mocker):
     )
 
     patches = ([
-        game_patches_mock.return_value,
+        mock_create_from_game.return_value,
         mock_add_elevator_connections_to_patches.return_value,
     ])
     patches.append(patches[-1].assign_node_configuration.return_value)
@@ -241,14 +243,10 @@ def test_create_base_patches(mocker):
     result = factory.create_base_patches(layout_configuration, rng, game, is_multiworld, player_index=0)
 
     # Assert
-    game_patches_mock.assert_called_once_with(
-        0, layout_configuration, {},
-        game.get_default_elevator_connection.return_value,
-        {}, {}, {}, ResourceCollection.with_database(game.resource_database),
-        game.starting_location, {},
+    mock_create_from_game.assert_called_once_with(
+        game, 0, layout_configuration,
     )
 
-    game.get_default_elevator_connection.assert_called_once_with()
     mock_add_elevator_connections_to_patches.assert_called_once_with(factory, layout_configuration, rng, patches[0])
 
     # Gate Assignment
